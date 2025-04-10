@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Communication App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Home Screen -->
+    <div id="homeScreen" class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-8">
+            <div class="container mx-auto px-4">
+                <h1 class="text-4xl font-bold text-center mb-2">Real-Time Communication</h1>
+                <p class="text-center text-lg opacity-90">Connect instantly with video and voice recognition</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-8">
+            <!-- Video and Transcription Section -->
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Video Feed -->
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <h2 class="text-xl font-semibold mb-4">Live Video Feed</h2>
+                    <div class="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
+                        <div class="video-container h-[300px]">
+                            <video id="localVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                            <div id="mediaError" class="hidden error-message">
+                                <i class="fas fa-video-slash text-4xl mb-4"></i>
+                                <p class="text-lg mb-2">Unable to access camera</p>
+                                <p class="text-sm opacity-75">Please check your camera permissions</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            <!-- Voice Recognition -->
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <h2 class="text-xl font-semibold mb-4">Voice Recognition</h2>
+                
+                <!-- Speech Test Section -->
+                <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-blue-600">Speech Recognition Test</h3>
+                        <button id="testSpeechBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                            <i class="fas fa-microphone mr-2"></i>
+                            <span>Test Microphone</span>
+                        </button>
+                    </div>
+
+                    <!-- Permission Instructions -->
+                    <div id="permissionInstructions" class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 class="font-medium text-blue-800 mb-2">Before Testing:</h4>
+                        <ol class="list-decimal list-inside space-y-2 text-sm text-blue-700">
+                            <li>Allow microphone access when prompted</li>
+                            <li>Make sure your microphone is connected and working</li>
+                            <li>Speak clearly at a normal pace</li>
+                            <li>Use Chrome browser for best results</li>
+                        </ol>
+                        <div class="mt-3 text-xs text-blue-600">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            To change permissions: Click the camera icon in your browser's address bar
+                        </div>
+                    </div>
+
+                    <div id="speechTestResult" class="hidden">
+                        <div class="flex items-center mb-2">
+                            <span class="font-medium mr-2">Status:</span>
+                            <span id="speechTestStatus" class="text-gray-700"></span>
+                        </div>
+                        <div class="flex items-center mb-2">
+                            <span class="font-medium mr-2">Confidence:</span>
+                            <div class="flex-1">
+                                <div id="confidenceMeter" class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div id="confidenceBar" class="h-full bg-green-500 transition-all duration-300" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="testInstructions" class="mt-4 p-3 bg-gray-100 rounded-lg">
+                            <p class="text-sm text-gray-700">
+                                <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                                Try saying: "Testing one two three" or count from 1 to 5
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Error Message -->
+                    <div id="errorMessage" class="hidden mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <div class="flex items-start">
+                            <i class="fas fa-exclamation-circle text-red-500 mt-1 mr-3"></i>
+                            <div>
+                                <h4 class="font-medium text-red-800 mb-1">Microphone Access Required</h4>
+                                <p class="text-sm text-red-700" id="errorDetails"></p>
+                                <div class="mt-3 text-xs text-red-600">
+                                    To fix: Click the camera icon in your browser's address bar and allow microphone access
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="transcript-container">
+                    <div id="transcriptArea" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- Network Status -->
+            <div class="mt-8 bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-semibold mb-4">Network Connection</h2>
+                <div class="space-y-3">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-network-wired text-blue-600"></i>
+                        <span class="font-medium">Server Status:</span>
+                        <span id="serverStatus" class="text-green-600">Connecting...</span>
+                    </div>
+                    <div id="networkInfo" class="hidden">
+                        <p class="text-sm text-gray-600 mb-2">To join from another device on the same network:</p>
+                        <div class="bg-gray-100 p-3 rounded-lg">
+                            <code id="networkUrl" class="text-sm font-mono"></code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="mt-8 bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-semibold mb-4">Instructions</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-medium text-blue-600">Voice Recognition Controls</h3>
+                        <ul class="list-disc list-inside space-y-2 text-gray-700">
+                            <li>Press <span class="bg-gray-100 px-2 py-1 rounded">Space</span> to pause/resume voice recognition</li>
+                            <li>Speak clearly and at a normal pace for better accuracy</li>
+                            <li>Messages with high confidence will be shared automatically</li>
+                        </ul>
+                    </div>
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-medium text-blue-600">Room Connectivity</h3>
+                        <ul class="list-disc list-inside space-y-2 text-gray-700">
+                            <li>Share room code with others to connect</li>
+                            <li>Up to 10 users can join a room</li>
+                            <li>Last 50 messages are saved in room history</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Room Controls -->
+            <div class="mt-8 bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-semibold mb-4">Room Management</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Create Room -->
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-medium">Create New Room</h3>
+                        <button id="createRoomBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition duration-150 flex items-center justify-center">
+                            <i class="fas fa-plus-circle mr-2"></i>
+                            <span>Create Room</span>
+                        </button>
+                        <p class="text-sm text-gray-600">Create a new room and share the code with others</p>
+                    </div>
+
+                    <!-- Join Room -->
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-medium">Join Existing Room</h3>
+                        <div class="flex gap-2">
+                            <div class="flex-1 space-y-2">
+                                <input type="text" id="roomCodeInput" placeholder="Enter 6-digit room code" 
+                                       class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       maxlength="6" pattern="[A-Za-z0-9]{6}">
+                                <p class="text-sm text-gray-600">Enter the room code shared with you</p>
+                            </div>
+                            <button id="joinRoomBtn" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition duration-150 flex items-center">
+                                <i class="fas fa-sign-in-alt mr-2"></i>
+                                <span>Join</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Room Screen (Initially Hidden) -->
+    <div id="roomScreen" class="hidden min-h-screen">
+        <div class="container mx-auto px-4 py-8">
+            <!-- Room Header -->
+            <div class="bg-white rounded-lg shadow-lg p-4 mb-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold">Room: <span id="roomCodeDisplay" class="text-blue-600"></span></h2>
+                        <p class="text-sm text-gray-600">Connected Users: <span id="userCount">1</span></p>
+                    </div>
+                    <button id="leaveRoomBtn" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg transition duration-150">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Leave Room
+                    </button>
+                </div>
+            </div>
+
+            <!-- Room Content -->
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Video Feed -->
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <h3 class="text-lg font-semibold mb-4">Your Video</h3>
+                    <div class="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
+                        <video id="roomVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                    </div>
+                </div>
+
+                <!-- Chat/Transcript Area -->
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <h3 class="text-lg font-semibold mb-4">Live Transcript</h3>
+                    <div id="roomTranscriptArea" class="h-[400px] bg-gray-50 rounded-lg p-4 overflow-y-auto space-y-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="notificationArea" class="fixed bottom-4 right-4 space-y-2"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="mt-4 text-lg font-medium">Loading...</p>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

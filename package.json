@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "array-flatten": "^3.0.0",
+    "cors": "^2.8.5",
+    "destroy": "^1.2.0",
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1",
+    "utils-merge": "^1.0.1",
+    "uuid": "^11.1.0"
+  }
+}
